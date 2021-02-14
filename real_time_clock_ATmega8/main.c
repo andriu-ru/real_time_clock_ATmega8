@@ -5,8 +5,6 @@
  * Author : admin
  */ 
 
-
-
 /* 
  * Программа электронных часов 
  * на асинхронном таймере счетчике ТС2 
@@ -20,14 +18,17 @@
 #include <avr/interrupt.h>
 #include <util/delay.h>
 
-#define  blink_led 2
+#define  button_delay 30 //Задержка срабатывания нажатых кнопок, настройки "Часов" и "Минут". Величина в "попугаях", зависит от срабатывания прерывания ТС0
 
-void _7SEG_indikator ();
+void _7SEG_indikator (void);
 void setup_ports (void);
 void PCK_mode_T2 (void); 
-int hours ( unsigned long h);
+int hours (unsigned long h);
 int minutes (unsigned long h);
 void razbika (unsigned long chislo_1, unsigned long chislo_2);
+void button (void);
+void TC0_setup (void); 
+void button_touch_delay (void);
 
  // Массив чисел от 0 до 9 для семисигментного индикатора без точки
 unsigned char number [10] = {
@@ -66,16 +67,34 @@ unsigned char segment_1 = 0;
 unsigned char segment_2 = 0;
 unsigned char segment_3 = 0;
 unsigned char segment_4 = 0;
+unsigned char segment_number = 1;
 
 unsigned char point = 1;
 
+unsigned char time_setup = 0;
 
+unsigned char button_hour = 0;
+unsigned char button_minute = 0;
+
+ISR (TIMER0_OVF_vect)
+{
+	segment_number++;
+	
+	if (segment_number >= 5)
+	{
+		segment_number = 1;
+	}
+	
+	button_touch_delay(); //Задержка срабатывания кнопок для настройки "Часов" и "Минут"
+	
+	button(); //Функция обработки кнопок настройки часов
+	
+	TCNT0 = 178; //Записываем число 178 в регистр TCNT0, для получения интервала 2мс. Это интервал срабатывания прерывания по переполнению ТС0
+}
 
 ISR (TIMER2_COMP_vect) //Вектор прерывания для ТС2. инкриментируем переменную seconds каждый заход в вектор до тех пор пока она не будет больше 60
 {
 	second ++; //Данная переменная хранит общее количество секунд. Раз всекунду происходит инкремент переменной
-	
-	//PORTC ^= 1<<PC5;
 	
 	if (point != 1) //С помощью данной конструкции if зажигаем раз в секнду точку на втором семисегментном индикаторе
 	{
@@ -84,8 +103,6 @@ ISR (TIMER2_COMP_vect) //Вектор прерывания для ТС2. инкриментируем переменную se
 	else point = 2;
 }
 
-
-
 int main(void) // Начало основной функции main
 {
 
@@ -93,25 +110,13 @@ int main(void) // Начало основной функции main
 	
 	PCK_mode_T2(); // Настройка T2 в асинхронный режим
 	
+	TC0_setup(); // Запуск ТС0
+	
     while (1) //Начало основного цикла
     {
 		razbika(minutes(second), hours(second)); //В данную функцию передаем накопленные секунды для пересчета их в часы и минуты
 		
 		_7SEG_indikator(); //Функция вывода времени на семисегментный индикатор
-		
-		if (~PINC & (1<<PC1)) // Начало настройки часов. Нажатие на кнопку добавляет по одному часу
-		{
-			second = second + 3600;
-			
-			while(~PINC & (1<<PC1));
-		} // Конец настройки часов
-		
-		if (~PINC & (1<<PC2)) // Начало настройки минут. Нажати на кнопку добавляет по одной минуте
-		{
-			second = second + 60;
-			
-			while(~PINC & (1<<PC2));
-		} // Конец настройки минут
 		
 		if (second > 86400) // В сутках 86400 секунд. При переполнении сбрасываем секнды в ноль. 
 		{
@@ -171,7 +176,6 @@ int hours (unsigned long h) //Начало функции
 	return h;
 } //Конец функции
 
-
 /**************************Функция расчитывает часы из накопленных секунд***********************************/
 int minutes (unsigned long m) //Начало функции
 {
@@ -179,7 +183,6 @@ int minutes (unsigned long m) //Начало функции
 	
 	return m;
 }//Конец функции
-
 
 /**************************Функция разбивает числа на цифры***********************************/
 void razbika (unsigned long chislo_1, unsigned long chislo_2) //Начало функции
@@ -191,34 +194,88 @@ void razbika (unsigned long chislo_1, unsigned long chislo_2) //Начало функции
 	segment_4 = chislo_2 / 10;
 } //Конец функции
 
-
 /**************************Функция вывода времени на семисегментные индикаторы***********************************/
 void _7SEG_indikator (void) //Начало функции
 {
+	switch (segment_number) //Начало оператора switсh
+	{
+		case 1: 
 			PORTD = 0x00; //Четвертая цифра
-			PORTD = number[segment_1];
-			PORTB = 0b1000;
-			_delay_ms(blink_led);
-			
+ 			PORTD = number[segment_1];
+ 			PORTB = 0b1000;
+			break;
+			 
+		case 2:
 			PORTD = 0x00; //Третья цифра
 			PORTD = number[segment_2];
 			PORTB = 0b0100;
-			_delay_ms(blink_led);
-			
+			break;
+						
+		case 3:
 			PORTD = 0x00; //Вторая цифра без точки
+			
 			if (point == 1)
 			{
 				PORTD = number[segment_3];
 			}
-			
-			else  {PORTD = number_point[segment_3];}
+			else PORTD = number_point[segment_3];
+
 			PORTB = 0b0010; //Вторая цифра с точкой
-			_delay_ms(blink_led);
-			
+			break;
+						
+		case 4:
 			PORTD = 0x00; //Первая цифра
 			PORTD = number[segment_4];
-			PORTB = 0b0001;
-			_delay_ms(blink_led);
+			PORTB = 0b0001;	
+			break;							
+	} //Конец оператора switсh
+
 } //Конец функции
 
+/**************************Функция обработки кнопок настройки часов***********************************/
+void button (void) //Начало функции
+{
+			if (button_hour == button_delay) // Начало настройки часов. Нажатие на кнопку добавляет по одному часу
+			{
+				second = second + 3600;
+			} // Конец настройки часов
+			
+			if (button_minute == button_delay) // Начало настройки минут. Нажати на кнопку добавляет по одной минуте
+			{
+				second = second + 60;
+			} // Конец настройки минут
+} //Конец функции
 
+/**************************Функция настрйки ТС0***********************************/
+void TC0_setup (void) //Начало функции
+{
+	TCCR0 |= (1<<CS02); //Предделитеь настроен на 256
+	TIMSK |= (1<<TOIE0); // Разрешаем прерывание на переполнению 
+	TCNT0 = 178; //Число в регистре с которого начинается счет чтобы получить 2мс
+} //Конец функции
+
+/**************************Функция реализует задержку смены цифры при настройке "Часов" и "Минут"***********************************/
+void button_touch_delay (void) //Начало функции
+{
+		if (~PINC & (1<<PC1)) //Задержка срабатывания кнопки, настройки "Часов"
+		{
+			button_hour ++; //Переменнах хоанит задержку для настройки "Часов"
+		}
+		else button_hour = 0;
+		
+		if (button_hour > button_delay)  //Обнуление переменной хранящей задержку "Часов" если кнопка настройки не нажата 
+		{
+			button_hour = 0;
+		}
+		
+		if (~PINC & (1<<PC2)) //Задержка срабатывания кнопки, настройки "Минут"
+		{
+			button_minute ++; //Переменнах хоанит задержку для настройки "Минут"
+		}
+		else button_minute = 0;
+		
+		if (button_minute > button_delay)  //Обнуление переменной хранящей задержку "Минут" если кнопка настройки не нажата 
+		{
+			button_minute = 0;
+		}
+} //Конец функции
