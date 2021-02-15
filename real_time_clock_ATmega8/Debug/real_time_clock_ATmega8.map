@@ -292,25 +292,25 @@ END GROUP
  .text.setup_ports
                 0x000000be       0x2c main.o
                 0x000000be                setup_ports
- .text.PCK_mode_T2
-                0x000000ea       0x3c main.o
-                0x000000ea                PCK_mode_T2
- .text.hours    0x00000126        0xe main.o
-                0x00000126                hours
- .text.minutes  0x00000134       0x32 main.o
-                0x00000134                minutes
- .text.razbika  0x00000166       0x54 main.o
-                0x00000166                razbika
- .text._7SEG_indikator
-                0x000001ba       0x8a main.o
-                0x000001ba                _7SEG_indikator
- .text.button   0x00000244       0x60 main.o
-                0x00000244                button
  .text.TC0_setup
-                0x000002a4       0x12 main.o
-                0x000002a4                TC0_setup
- .text.main     0x000002b6       0x64 main.o
-                0x000002b6                main
+                0x000000ea       0x12 main.o
+                0x000000ea                TC0_setup
+ .text.PCK_mode_T2
+                0x000000fc       0x3c main.o
+                0x000000fc                PCK_mode_T2
+ .text.hours    0x00000138        0xe main.o
+                0x00000138                hours
+ .text.minutes  0x00000146       0x32 main.o
+                0x00000146                minutes
+ .text.razbika  0x00000178       0x54 main.o
+                0x00000178                razbika
+ .text._7SEG_indikator
+                0x000001cc       0x8a main.o
+                0x000001cc                _7SEG_indikator
+ .text.main     0x00000256       0x64 main.o
+                0x00000256                main
+ .text.button   0x000002ba       0x60 main.o
+                0x000002ba                button
  .text.button_touch_delay
                 0x0000031a       0x42 main.o
                 0x0000031a                button_touch_delay
@@ -494,11 +494,11 @@ END GROUP
  *(.debug_frame)
  .debug_frame   0x00000000      0x178 main.o
 
-.debug_str      0x00000000      0x3c1
+.debug_str      0x00000000      0x3ce
  *(.debug_str)
  .debug_str     0x00000000      0x17a C:/Program Files (x86)/Atmel/Studio/7.0/Packs/atmel/ATmega_DFP/1.6.364/gcc/dev/atmega8/avr4/crtatmega8.o
- .debug_str     0x0000017a      0x247 main.o
-                                0x294 (size before relaxing)
+ .debug_str     0x0000017a      0x254 main.o
+                                0x2a1 (size before relaxing)
 
 .debug_loc      0x00000000      0x2ac
  *(.debug_loc)
